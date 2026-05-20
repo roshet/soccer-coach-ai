@@ -19,25 +19,29 @@ def extract_frames(video_path: str, max_frames: int = 60) -> list[np.ndarray]:
         raise VideoTooLargeError("Video exceeds 50MB limit")
 
     cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = total_frames / fps
+    if not cap.isOpened():
+        raise ValueError(f"Could not open video file: {video_path}")
 
-    if duration > MAX_DURATION_SECONDS:
+    try:
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = total_frames / fps
+
+        if duration > MAX_DURATION_SECONDS:
+            raise VideoDurationError(f"Video exceeds {MAX_DURATION_SECONDS}s limit")
+
+        step = max(1, total_frames // max_frames)
+        frames = []
+        frame_idx = 0
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if frame_idx % step == 0:
+                frames.append(frame)
+            frame_idx += 1
+    finally:
         cap.release()
-        raise VideoDurationError(f"Video exceeds {MAX_DURATION_SECONDS}s limit")
 
-    step = max(1, total_frames // max_frames)
-    frames = []
-    frame_idx = 0
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        if frame_idx % step == 0:
-            frames.append(frame)
-        frame_idx += 1
-
-    cap.release()
-    return frames
+    return frames[:max_frames]
