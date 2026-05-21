@@ -74,10 +74,10 @@ def analyze_passing(
             checkpoint_flags["body_shape"] = flag
         elif "head" in flag.lower() or "eyes" in flag.lower():
             checkpoint_flags["head_position"] = flag
-        elif "plant foot" in flag.lower():
-            checkpoint_flags["plant_foot_position"] = flag
         elif "unstable" in flag.lower() or "weight" in flag.lower():
             checkpoint_flags["weight_transfer"] = flag
+        elif "plant foot" in flag.lower():
+            checkpoint_flags["plant_foot_position"] = flag
 
     checkpoints = [
         CheckpointScore(name=k, score=v, flag=checkpoint_flags.get(k))
