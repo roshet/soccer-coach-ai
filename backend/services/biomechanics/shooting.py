@@ -1,5 +1,5 @@
 import numpy as np
-from .base import BiomechanicsResult
+from .base import BiomechanicsResult, CheckpointScore
 
 
 def find_contact_frame_idx(landmarks_per_frame: list[dict], kicking_foot: str) -> int:
@@ -102,12 +102,33 @@ def analyze_shooting(
         scores["follow_through"] = 50
         flags.append("Follow-through cuts off early — reduces power and accuracy")
     else:
-        scores["follow_through"] = 70
+        scores["follow_through"] = 50
 
     overall = int(sum(scores.values()) / len(scores))
+
+    # Build per-checkpoint flag lookup (each checkpoint gets its own flag if one applies)
+    checkpoint_flags: dict[str, str] = {}
+    for flag in flags:
+        if "plant foot" in flag.lower():
+            checkpoint_flags["plant_foot_position"] = flag
+        elif "knee" in flag.lower():
+            checkpoint_flags["knee_over_ball"] = flag
+        elif "hip" in flag.lower():
+            checkpoint_flags["hip_rotation"] = flag
+        elif "lean" in flag.lower() or "leaning" in flag.lower():
+            checkpoint_flags["body_lean"] = flag
+        elif "follow" in flag.lower():
+            checkpoint_flags["follow_through"] = flag
+
+    checkpoints = [
+        CheckpointScore(name=k, score=v, flag=checkpoint_flags.get(k))
+        for k, v in scores.items()
+    ]
+
     return BiomechanicsResult(
         technique="shooting_driven",
         scores=scores,
         flags=flags,
         overall_score=overall,
+        checkpoints=checkpoints,
     )

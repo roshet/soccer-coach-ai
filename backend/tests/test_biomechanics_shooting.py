@@ -65,3 +65,10 @@ def test_find_contact_frame_idx_returns_int():
     idx = find_contact_frame_idx(frames, "right")
     assert isinstance(idx, int)
     assert 0 <= idx < len(frames)
+
+
+def test_analyze_shooting_populates_checkpoints():
+    frames = [good_shooting_frame()]
+    result = analyze_shooting(frames, kicking_foot="right", contact_frame_idx=0)
+    assert len(result.checkpoints) == 5
+    assert all(hasattr(cp, "name") and hasattr(cp, "score") for cp in result.checkpoints)
