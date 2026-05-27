@@ -40,6 +40,28 @@ npm run build
 npm run lint
 ```
 
+## Validation Loop
+
+Before claiming any task complete, fixed, or working, you MUST run the relevant checks below and paste/quote the actual output. "I think it works" or "the change looks right" is not acceptable — evidence before assertions.
+
+**After backend changes (anything under `backend/`):**
+```bash
+cd backend && pytest tests/ -v
+```
+All tests must pass. If a test fails, fix the root cause — do NOT delete, skip, `xfail`, or comment out the test to make it pass.
+
+**After frontend changes (anything under `frontend/`):**
+```bash
+cd frontend && npm run build && npm run lint
+```
+Build must succeed and lint must be clean. Type errors are real errors — fix them, don't suppress with `any` or `@ts-ignore`.
+
+**After changes that affect the API contract** (request/response shape in `routers/analyze.py` or `frontend/lib/api.ts`): run both the backend tests AND `npm run build` to confirm the frontend still type-checks against the new shape.
+
+**If you cannot run validation** (missing dependencies, no `ANTHROPIC_API_KEY`, sandbox restrictions, etc.): say so explicitly. Do NOT claim success based on reading the diff. State which checks you ran, which you skipped, and why.
+
+**UI/behavior changes** are not validated by tests alone. If you change the upload flow, results rendering, or any user-visible behavior, say plainly that automated checks passed but the UI was not exercised in a browser — don't claim the feature "works."
+
 ## Architecture
 
 ### Data Pipeline
