@@ -74,7 +74,7 @@ POST /analyze (video + technique + kicking_foot)
   → analyze_shooting/passing() # Biomechanics scoring (0-100 per checkpoint)
   → generate_feedback()       # Claude claude-sonnet-4-6: UEFA coach persona, 300-400 words
   → annotate frames           # Skeleton overlay → base64 JPEG
-  ← JSON: scores + flags + coaching_report + annotated_frames
+  ← JSON: overall_score + scores + flags + technique + coaching_report + annotated_frames
 ```
 
 ### Backend Structure
@@ -88,7 +88,9 @@ POST /analyze (video + technique + kicking_foot)
 - `services/biomechanics/passing.py` — 4 checkpoints: body shape, head position, plant foot, weight transfer
 - `services/feedback_generator.py` — Claude API call; returns `None` on failure (triggers 206)
 
-**Adding a new technique:** Create `services/biomechanics/<technique>.py` and register it in the `TECHNIQUE_ANALYZERS` dict in `routers/analyze.py`.
+**Technique identifiers:** The `technique` form field must be one of the keys in `TECHNIQUE_ANALYZERS` (`routers/analyze.py`): currently `shooting_driven` and `passing_short`. Anything else returns 422. These exact strings are also used by `TECHNIQUE_LABELS` in `feedback_generator.py`.
+
+**Adding a new technique:** Create `services/biomechanics/<technique>.py`, register its analyzer in the `TECHNIQUE_ANALYZERS` dict in `routers/analyze.py`, and add a display label in `TECHNIQUE_LABELS` in `feedback_generator.py`. Note `find_contact_frame_idx` lives in `shooting.py` and is reused for every technique.
 
 ### Frontend Structure
 
