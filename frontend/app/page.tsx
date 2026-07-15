@@ -3,7 +3,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import VideoUpload from "@/components/VideoUpload";
 import TechniqueSelector, { TechniqueValue } from "@/components/TechniqueSelector";
-import { analyzeVideo } from "@/lib/api";
+import { analyzeVideo, type AnalysisResult } from "@/lib/api";
+
+// Persist the result for the results page. Annotated frames are large base64 JPEGs that can
+// exceed the ~5MB sessionStorage quota; if storing the full payload throws, drop the frames
+// so a successful analysis still shows scores + coaching instead of surfacing as an error.
+function storeAnalysisResult(result: AnalysisResult) {
+  try {
+    sessionStorage.setItem("analysisResult", JSON.stringify(result));
+  } catch {
+    const trimmed: AnalysisResult = { ...result, annotated_frames: [], framesOmitted: true };
+    sessionStorage.setItem("analysisResult", JSON.stringify(trimmed));
+  }
+}
 
 export default function HomePage() {
   const router = useRouter();
@@ -21,7 +33,7 @@ export default function HomePage() {
     setError(null);
     try {
       const result = await analyzeVideo(file, technique, kickingFoot);
-      sessionStorage.setItem("analysisResult", JSON.stringify(result));
+      storeAnalysisResult(result);
       router.push("/results");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Analysis failed. Please try again.");
