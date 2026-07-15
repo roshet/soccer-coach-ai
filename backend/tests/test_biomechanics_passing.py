@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from services.biomechanics.passing import analyze_passing
+from services.biomechanics.shooting import _horizontal_tilt_deg
 from services.biomechanics.base import BiomechanicsResult
 
 
@@ -28,11 +29,11 @@ def good_passing_frame():
     }
 
 
-def leaning_back_frame():
-    """Landmarks with player leaning back."""
+def head_up_frame():
+    """Landmarks with the player's head up (nose well above the shoulder line) — eyes off
+    the ball. This is a real passing fault the head_position checkpoint should catch."""
     frame = good_passing_frame()
-    frame["left_shoulder"] = make_landmark(0.25, 0.25)   # shoulders behind hips
-    frame["right_shoulder"] = make_landmark(0.45, 0.25)
+    frame["nose"] = make_landmark(0.45, 0.02)   # nose raised well above shoulders (y ~0.25)
     return frame
 
 
@@ -50,16 +51,36 @@ def test_analyze_passing_good_form_scores_high():
     assert result.overall_score >= 65
 
 
-def test_analyze_passing_leaning_back_scores_low():
-    frames = [leaning_back_frame()]
+def test_analyze_passing_head_up_scores_low():
+    frames = [head_up_frame()]
     result = analyze_passing(frames, kicking_foot="right", contact_frame_idx=0)
-    assert result.scores["head_position"] < 60 or result.scores["body_shape"] < 60
+    assert result.scores["head_position"] < 60
+
+
+def test_analyze_passing_good_head_position_scores_high_no_flag():
+    """A2 regression: a head-down pose must be reachable/high, not always flagged 'head up'."""
+    result = analyze_passing([good_passing_frame()], kicking_foot="right", contact_frame_idx=0)
+    assert result.scores["head_position"] >= 90
+    assert not any("head up" in f.lower() for f in result.flags)
 
 
 def test_analyze_passing_returns_flags_on_poor_form():
-    frames = [leaning_back_frame()]
+    frames = [head_up_frame()]
     result = analyze_passing(frames, kicking_foot="right", contact_frame_idx=0)
     assert len(result.flags) > 0
+
+
+def test_body_shape_orientation_invariant():
+    """Hips tilted by the same amount must score the same whether the hip line runs
+    left→right or right→left across image-x. Pins the arctan2 tilt bug in passing."""
+    frame_a = good_passing_frame()
+    frame_a["right_hip"] = make_landmark(0.52, 0.50)   # introduce a real hip tilt
+    frame_b = good_passing_frame()
+    frame_b["left_hip"] = make_landmark(1.0 - frame_a["left_hip"].x, frame_a["left_hip"].y)
+    frame_b["right_hip"] = make_landmark(1.0 - frame_a["right_hip"].x, frame_a["right_hip"].y)
+    a = analyze_passing([frame_a], kicking_foot="right", contact_frame_idx=0)
+    b = analyze_passing([frame_b], kicking_foot="right", contact_frame_idx=0)
+    assert a.scores["body_shape"] == b.scores["body_shape"]
 
 
 def test_analyze_passing_populates_checkpoints():

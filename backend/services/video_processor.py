@@ -40,6 +40,11 @@ def extract_frames(video_path: str, max_frames: int = 60) -> list[np.ndarray]:
                 break
             if frame_idx % step == 0:
                 frames.append(frame)
+                # Bound memory: with a valid `step` this fills after spanning the whole clip;
+                # if CAP_PROP_FRAME_COUNT is unreliable (0 → step=1) it caps the read at
+                # max_frames instead of loading every frame of a long video into RAM.
+                if len(frames) >= max_frames:
+                    break
             frame_idx += 1
     finally:
         cap.release()

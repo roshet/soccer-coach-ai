@@ -44,7 +44,13 @@ export default function ResultsPage() {
         flags={result.flags}
       />
 
-      <AnnotatedFrames frames={result.annotated_frames} />
+      {result.framesOmitted ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-400">
+          Annotated frames were too large to display for this analysis. Your scores and coaching report are unaffected.
+        </div>
+      ) : (
+        <AnnotatedFrames frames={result.annotated_frames} />
+      )}
 
       <CoachingReport report={result.coaching_report} />
 

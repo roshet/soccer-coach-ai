@@ -7,6 +7,9 @@ export interface AnalysisResult {
   technique: string;
   coaching_report: string | null;
   annotated_frames: string[];
+  // Client-set only (never returned by the API): true when annotated frames were dropped
+  // before storing because they exceeded the sessionStorage quota.
+  framesOmitted?: boolean;
 }
 
 export async function analyzeVideo(
