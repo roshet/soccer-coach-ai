@@ -1,6 +1,5 @@
-import numpy as np
 from .base import BiomechanicsResult, CheckpointScore
-from .shooting import find_contact_frame_idx, _score_range
+from .shooting import find_contact_frame_idx, _score_range, _horizontal_tilt_deg
 
 
 def analyze_passing(
@@ -16,10 +15,7 @@ def analyze_passing(
 
     # 1. Body shape — hips level (small angle to horizontal; ideal 0–10°)
     if "left_hip" in lm and "right_hip" in lm:
-        hip_angle = abs(float(np.degrees(np.arctan2(
-            lm["right_hip"].y - lm["left_hip"].y,
-            lm["right_hip"].x - lm["left_hip"].x,
-        ))))
+        hip_angle = _horizontal_tilt_deg(lm["left_hip"], lm["right_hip"])
         body_score = _score_range(hip_angle, 0.0, 10.0, penalty_rate=4)
         if hip_angle > 10:
             flags.append("Hips not square to target — reduces passing accuracy")
@@ -27,12 +23,14 @@ def analyze_passing(
     else:
         scores["body_shape"] = 50
 
-    # 2. Head position — nose y should be lower than shoulder midpoint y (head over ball)
+    # 2. Head position — the nose sits above the shoulders (smaller y), so head_delta is
+    # normally negative. "Head over the ball" = nose lowered toward the shoulder line
+    # (delta near 0); "head up" = nose well above the shoulders (strongly negative).
     if "nose" in lm and "left_shoulder" in lm and "right_shoulder" in lm:
         shoulder_mid_y = (lm["left_shoulder"].y + lm["right_shoulder"].y) / 2
-        head_delta = lm["nose"].y - shoulder_mid_y  # positive = nose below shoulders (good)
-        head_score = _score_range(head_delta, 0.05, 0.25, penalty_rate=300)
-        if head_delta < 0.05:
+        head_delta = lm["nose"].y - shoulder_mid_y  # negative = nose above shoulders
+        head_score = _score_range(head_delta, -0.12, 0.10, penalty_rate=400)
+        if head_delta < -0.12:
             flags.append("Head up at contact — keep eyes on the ball for accuracy")
         scores["head_position"] = head_score
     else:

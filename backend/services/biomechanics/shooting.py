@@ -28,6 +28,17 @@ def _score_range(value: float, ideal_min: float, ideal_max: float, penalty_rate:
     return max(0, int(100 - deviation * penalty_rate))
 
 
+def _horizontal_tilt_deg(p_left, p_right) -> float:
+    """Absolute tilt of the left→right line from horizontal, in [0, 90] degrees.
+
+    Orientation-independent: a level line reads ~0° regardless of which side sits at the
+    smaller image-x. (A raw abs(arctan2) returns ~180° for a level line when p_right.x <
+    p_left.x, which mis-scored players facing one way — see find in audit.)
+    """
+    angle = abs(float(np.degrees(np.arctan2(p_right.y - p_left.y, p_right.x - p_left.x))))
+    return angle if angle <= 90 else 180.0 - angle
+
+
 def analyze_shooting(
     landmarks_per_frame: list[dict],
     kicking_foot: str,
@@ -63,10 +74,7 @@ def analyze_shooting(
 
     # 3. Hip rotation (angle of hip line to horizontal; ideal 10–30°)
     if "left_hip" in lm and "right_hip" in lm:
-        hip_angle = abs(float(np.degrees(np.arctan2(
-            lm["right_hip"].y - lm["left_hip"].y,
-            lm["right_hip"].x - lm["left_hip"].x,
-        ))))
+        hip_angle = _horizontal_tilt_deg(lm["left_hip"], lm["right_hip"])
         hip_score = _score_range(hip_angle, 10.0, 30.0, penalty_rate=3)
         if hip_angle < 10:
             flags.append("Insufficient hip rotation — more rotation generates more power")
@@ -82,7 +90,14 @@ def analyze_shooting(
         smy = (lm["left_shoulder"].y + lm["right_shoulder"].y) / 2
         hmx = (lm["left_hip"].x + lm["right_hip"].x) / 2
         hmy = (lm["left_hip"].y + lm["right_hip"].y) / 2
-        lean = float(np.degrees(np.arctan2(smx - hmx, hmy - smy)))
+        # "Forward" is orientation-dependent: at contact the kicking foot is forward, so use
+        # the kicking ankle's side of the hips as the forward direction. Without this, a correct
+        # forward lean by a player facing −x reads as negative and is falsely flagged "leaning back".
+        if f"{kicking_foot}_ankle" in lm:
+            forward_sign = 1.0 if lm[f"{kicking_foot}_ankle"].x >= hmx else -1.0
+        else:
+            forward_sign = 1.0
+        lean = float(np.degrees(np.arctan2((smx - hmx) * forward_sign, hmy - smy)))
         lean_score = _score_range(lean, 5.0, 15.0, penalty_rate=5)
         if lean < 5:
             flags.append("Leaning back at contact — ball will go high")
