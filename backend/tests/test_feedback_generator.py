@@ -38,7 +38,9 @@ def test_generate_feedback_calls_claude_with_technique_context():
 
     call_kwargs = mock_client.messages.create.call_args
     prompt_text = str(call_kwargs)
-    assert "shooting" in prompt_text.lower() or "73" in prompt_text
+    # The prompt labels shooting_driven as "driven shot" (see TECHNIQUE_LABELS); assert the
+    # real technique context is present rather than a value ("73") that is trivially always there.
+    assert "driven shot" in prompt_text.lower()
 
 
 def test_generate_feedback_returns_none_on_api_error():

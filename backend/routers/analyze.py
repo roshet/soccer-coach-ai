@@ -67,6 +67,11 @@ async def analyze(
         raise HTTPException(status_code=400, detail="Video exceeds 50MB limit")
     except VideoDurationError:
         raise HTTPException(status_code=400, detail="Video exceeds 30-second limit")
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not process video file — ensure it is a valid video",
+        )
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
